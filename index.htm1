@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>أثر | تسجيل دخول الضيفات</title>
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f7f2eb;
+      text-align: center;
+      padding: 20px;
+      color: #604b3e;
+    }
+    .box {
+      background: white;
+      padding: 22px;
+      border-radius: 18px;
+      max-width: 420px;
+      margin: 25px auto;
+    }
+    input, button {
+      width: 90%;
+      padding: 13px;
+      margin: 8px;
+      border-radius: 9px;
+      font-size: 17px;
+    }
+    button {
+      background: #80634e;
+      color: white;
+      border: 0;
+      cursor: pointer;
+    }
+    #reader {
+      width: 100%;
+      margin: 15px auto;
+    }
+    #result {
+      margin-top: 18px;
+      line-height: 2;
+    }
+  </style>
+</head>
+<body>
+
+<div class="box">
+  <h2>أثر</h2>
+  <h3>تسجيل دخول الضيفات</h3>
+
+  <div id="login">
+    <input type="password" id="pin" placeholder="الرقم السري">
+    <button onclick="login()">دخول</button>
+  </div>
+
+  <div id="scannerArea" style="display:none">
+    <div id="reader"></div>
+    <button onclick="startScanner()">تشغيل الكاميرا</button>
+  </div>
+
+  <div id="result"></div>
+</div>
+
+<script>
+let scanner;
+let busy = false;
+
+function login() {
+  if (document.getElementById("pin").value === "9568") {
+    document.getElementById("login").style.display = "none";
+    document.getElementById("scannerArea").style.display = "block";
+    document.getElementById("result").innerHTML = "اضغطي تشغيل الكاميرا للبدء";
+  } else {
+    document.getElementById("result").innerHTML = "الرقم السري غير صحيح";
+  }
+}
+
+function startScanner() {
+  scanner = new Html5Qrcode("reader");
+  scanner.start(
+    { facingMode: "environment" },
+    { fps: 10, qrbox: { width: 250, height: 250 } },
+    onScanSuccess
+  ).catch(function() {
+    document.getElementById("result").innerHTML = "تعذر تشغيل الكاميرا";
+  });
+}
+
+function onScanSuccess(text) {
+  if (busy) return;
+  busy = true;
+
+  document.getElementById("result").innerHTML =
+    "تمت قراءة الباركود: " + text;
+
+  scanner.pause(true);
+  setTimeout(function() {
+    busy = false;
+    scanner.resume();
+  }, 3000);
+}
+</script>
+
+</body>
+</html>
