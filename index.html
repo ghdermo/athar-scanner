@@ -1,105 +1,312 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>أثر | تسجيل دخول الضيفات</title>
-  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: #f7f2eb;
-      text-align: center;
-      padding: 20px;
-      color: #604b3e;
-    }
-    .box {
-      background: white;
-      padding: 22px;
-      border-radius: 18px;
-      max-width: 420px;
-      margin: 25px auto;
-    }
-    input, button {
-      width: 90%;
-      padding: 13px;
-      margin: 8px;
-      border-radius: 9px;
-      font-size: 17px;
-    }
-    button {
-      background: #80634e;
-      color: white;
-      border: 0;
-      cursor: pointer;
-    }
-    #reader {
-      width: 100%;
-      margin: 15px auto;
-    }
-    #result {
-      margin-top: 18px;
-      line-height: 2;
-    }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>أثر | تسجيل دخول الضيفات</title>
+
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+
+<style>
+body {
+  font-family: Arial, sans-serif;
+  background: #f7f2eb;
+  text-align: center;
+  padding: 20px;
+  color: #604b3e;
+}
+.box {
+  background: white;
+  padding: 22px;
+  border-radius: 18px;
+  max-width: 420px;
+  margin: 25px auto;
+}
+input, button {
+  width: 90%;
+  padding: 13px;
+  margin: 8px;
+  border-radius: 9px;
+  font-size: 17px;
+  box-sizing: border-box;
+}
+button {
+  background: #80634e;
+  color: white;
+  border: 0;
+  cursor: pointer;
+}
+#reader {
+  width: 100%;
+  margin: 15px auto;
+}
+#result {
+  margin-top: 18px;
+  line-height: 2;
+}
+.success {
+  color: green;
+}
+.error {
+  color: #b00020;
+}
+#confirmButton, #nextButton {
+  display: none;
+}
+</style>
 </head>
+
 <body>
 
 <div class="box">
-  <h2>أثر</h2>
-  <h3>تسجيل دخول الضيفات</h3>
 
-  <div id="login">
-    <input type="password" id="pin" placeholder="الرقم السري">
-    <button onclick="login()">دخول</button>
-  </div>
+<h2>أثر</h2>
+<h3>تسجيل دخول الضيفات</h3>
 
-  <div id="scannerArea" style="display:none">
-    <div id="reader"></div>
-    <button onclick="startScanner()">تشغيل الكاميرا</button>
-  </div>
+<div id="login">
+<input type="password" id="pin" placeholder="الرقم السري">
+<button onclick="login()">دخول</button>
+</div>
 
-  <div id="result"></div>
+<div id="scannerArea" style="display:none">
+<div id="reader"></div>
+<button onclick="startScanner()">تشغيل الكاميرا</button>
+</div>
+
+<div id="result"></div>
+
+<button id="confirmButton" onclick="confirmCheckIn()">
+تأكيد الدخول
+</button>
+
+<button id="nextButton" onclick="nextGuest()">
+مسح ضيفة أخرى
+</button>
+
 </div>
 
 <script>
+
+const API_URL =
+"https://script.google.com/macros/s/AKfycbwtM4eEjt_OWOspreNfPeUYnI4UYCurtKmtb0O9M-AC3TIe5XAig2mesxYjJJlejiHtEQ/exec";
+
 let scanner;
 let busy = false;
+let currentId = "";
+let currentPin = "";
 
 function login() {
-  if (document.getElementById("pin").value === "9568") {
+
+  const pin = document.getElementById("pin").value;
+
+  if (pin === "9568" || pin === "٩٥٦٨") {
+
+    currentPin = pin;
+
     document.getElementById("login").style.display = "none";
     document.getElementById("scannerArea").style.display = "block";
-    document.getElementById("result").innerHTML = "اضغطي تشغيل الكاميرا للبدء";
+
+    document.getElementById("result").textContent =
+      "أهلًا بكِ في نظام أثر، اضغطي تشغيل الكاميرا.";
+
   } else {
-    document.getElementById("result").innerHTML = "الرقم السري غير صحيح";
+
+    document.getElementById("result").textContent =
+      "الرقم السري غير صحيح";
+
   }
 }
 
-function startScanner() {
-  scanner = new Html5Qrcode("reader");
-  scanner.start(
-    { facingMode: "environment" },
-    { fps: 10, qrbox: { width: 250, height: 250 } },
-    onScanSuccess
-  ).catch(function() {
-    document.getElementById("result").innerHTML = "تعذر تشغيل الكاميرا";
+function apiRequest(action, id, pin) {
+
+  return new Promise((resolve, reject) => {
+
+    const callbackName =
+      "atharCallback" + Date.now() + Math.floor(Math.random() * 1000);
+
+    const script = document.createElement("script");
+
+    const params = new URLSearchParams({
+      api: "1",
+      action: action,
+      id: id,
+      pin: pin || "",
+      callback: callbackName
+    });
+
+    window[callbackName] = function(data) {
+      resolve(data);
+      delete window[callbackName];
+      script.remove();
+    };
+
+    script.onerror = function() {
+      reject(new Error("تعذر الاتصال بجدول أثر"));
+      delete window[callbackName];
+      script.remove();
+    };
+
+    script.src = API_URL + "?" + params.toString();
+
+    document.body.appendChild(script);
+
   });
 }
 
-function onScanSuccess(text) {
+function extractId(text) {
+
+  try {
+
+    const url = new URL(text);
+
+    const id = url.searchParams.get("id");
+
+    if (id) return id.trim();
+
+  } catch (e) {}
+
+  return text.trim();
+
+}
+
+function startScanner() {
+
+  if (scanner) return;
+
+  scanner = new Html5Qrcode("reader");
+
+  scanner.start(
+    { facingMode: "environment" },
+    {
+      fps: 10,
+      qrbox: { width: 250, height: 250 }
+    },
+    onScanSuccess
+  ).catch(function() {
+
+    document.getElementById("result").textContent =
+      "تعذر تشغيل الكاميرا";
+
+    scanner = null;
+
+  });
+
+}
+
+async function onScanSuccess(text) {
+
   if (busy) return;
+
   busy = true;
 
-  document.getElementById("result").innerHTML =
-    "تمت قراءة الباركود: " + text;
-
   scanner.pause(true);
-  setTimeout(function() {
-    busy = false;
-    scanner.resume();
-  }, 3000);
+
+  currentId = extractId(text);
+
+  document.getElementById("result").textContent =
+    "جاري البحث عن بيانات الضيفة...";
+
+  try {
+
+    const guest = await apiRequest("guest", currentId);
+
+    if (!guest.valid) {
+
+      document.getElementById("result").innerHTML =
+        '<span class="error">' + guest.message + '</span>';
+
+      document.getElementById("nextButton").style.display = "block";
+      return;
+
+    }
+
+    if (guest.checkedIn) {
+
+      document.getElementById("result").innerHTML =
+        '<span class="error">⚠️ الضيفة ' +
+        guest.name +
+        '<br>تم تسجيل دخولها مسبقًا</span>';
+
+      document.getElementById("nextButton").style.display = "block";
+      return;
+
+    }
+
+    document.getElementById("result").innerHTML =
+      '<span class="success">تم التعرف على الضيفة</span>' +
+      '<br><strong>الاسم: ' + guest.name + '</strong>' +
+      '<br>حالة الدخول: لم تدخل بعد';
+
+    document.getElementById("confirmButton").style.display = "block";
+
+  } catch (error) {
+
+    document.getElementById("result").textContent =
+      error.message;
+
+    document.getElementById("nextButton").style.display = "block";
+
+  }
+
 }
+
+async function confirmCheckIn() {
+
+  document.getElementById("confirmButton").style.display = "none";
+
+  document.getElementById("result").textContent =
+    "جاري تسجيل الدخول...";
+
+  try {
+
+    const result = await apiRequest(
+      "checkin",
+      currentId,
+      currentPin
+    );
+
+    if (result.success) {
+
+      document.getElementById("result").innerHTML =
+        '<span class="success">✅ ' +
+        result.message +
+        '</span>';
+
+    } else {
+
+      document.getElementById("result").innerHTML =
+        '<span class="error">' +
+        result.message +
+        '</span>';
+
+    }
+
+  } catch (error) {
+
+    document.getElementById("result").textContent =
+      error.message;
+
+  }
+
+  document.getElementById("nextButton").style.display = "block";
+
+}
+
+function nextGuest() {
+
+  currentId = "";
+  busy = false;
+
+  document.getElementById("result").textContent =
+    "جاهزة لمسح الضيفة التالية";
+
+  document.getElementById("confirmButton").style.display = "none";
+  document.getElementById("nextButton").style.display = "none";
+
+  if (scanner) scanner.resume();
+
+}
+
 </script>
 
 </body>
